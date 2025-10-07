@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<listing xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+    <columns name="product_columns">
+        <actionsColumn name="view_on_store"
+                       class="IdeallyStudio\MerchantToolkit\Ui\Component\Listing\Column\ProductViewActions"
+                       component="Magento_Ui/js/grid/columns/actions"
+                       sortOrder="195">
+            <settings>
+                <indexField>entity_id</indexField>
+                <dataType>text</dataType>
+                <label translate="true">View</label>
+            </settings>
+        </actionsColumn>
+    </columns>
+</listing>
