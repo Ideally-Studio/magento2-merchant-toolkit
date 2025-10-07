@@ -11,7 +11,7 @@ Magento 2 admin enhancements that make it easier for merchandisers to preview st
 ## Installation
 
 ```bash
-composer require ideallystudio/module-merchant-toolkit
+composer require ideallystudio/magento2-merchant-toolkit
 bin/magento setup:upgrade
 ```
 
