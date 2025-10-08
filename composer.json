@@ -2,7 +2,7 @@
     "name": "ideallystudio/magento2-merchant-toolkit",
     "description": "Magento 2 admin enhancements to preview products, categories and CMS pages per store view.",
     "type": "magento2-module",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "license": [
         "MIT"
     ],

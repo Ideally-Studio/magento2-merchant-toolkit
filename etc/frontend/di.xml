@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <type name="Magento\Catalog\Helper\Product">
+        <plugin name="ideallystudio_merchanttoolkit_preview_visibility"
+                type="IdeallyStudio\MerchantToolkit\Plugin\Catalog\Helper\Product\PreviewVisibilityPlugin"
+                sortOrder="10"/>
+    </type>
+</config>
+

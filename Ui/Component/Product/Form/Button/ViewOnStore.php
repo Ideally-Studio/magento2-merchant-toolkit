@@ -4,11 +4,12 @@ namespace IdeallyStudio\MerchantToolkit\Ui\Component\Product\Form\Button;
 
 use IdeallyStudio\MerchantToolkit\Model\ProductViewUrlResolver;
 use Magento\Catalog\Api\Data\ProductInterface;
+use Magento\Catalog\Model\Product\Visibility;
 use Magento\Catalog\Block\Adminhtml\Product\Edit\Button\Generic;
 use Magento\Ui\Component\Control\Container;
 
 /**
- * Provides the "View on Store" button in the product editor.
+ * Provides the "View/Preview on Store" button in the product editor.
  */
 class ViewOnStore extends Generic
 {
@@ -43,6 +44,10 @@ class ViewOnStore extends Generic
             return [];
         }
 
+        if ((int)$product->getVisibility() === Visibility::VISIBILITY_NOT_VISIBLE) {
+            return [];
+        }
+
         $storeUrls = $this->buildStoreUrls($product);
         if (!$storeUrls) {
             return [];
@@ -52,19 +57,24 @@ class ViewOnStore extends Generic
             $storeData = reset($storeUrls);
 
             return [
-                'label' => __('View on Store'),
+                'label' => $storeData['is_preview'] ? __('Preview on Store') : __('View on Store'),
                 'class' => 'action-secondary',
                 'on_click' => $this->buildOnClick($storeData['href']),
                 'sort_order' => 80,
             ];
         }
 
-        $firstStore = reset($storeUrls);
+        $allPreview = $this->isPreviewOnly($storeUrls);
+
         $options = [];
         foreach ($storeUrls as $storeData) {
+            $optionLabel = $storeData['is_preview']
+                ? __('Preview on %1', $storeData['label'])
+                : __('View on %1', $storeData['label']);
+
             $options[] = [
                 'id_hard' => 'view_on_store_' . $storeData['store_id'],
-                'label' => $storeData['label'],
+                'label' => $optionLabel,
                 'data_attribute' => [
                     'mage-init' => [
                         'buttonAdapter' => [
@@ -84,7 +94,7 @@ class ViewOnStore extends Generic
         }
 
         return [
-            'label' => __('View on Store'),
+            'label' => $allPreview ? __('Preview on Store') : __('View on Store'),
             'class' => 'view-on-store-parent-btn',
             'class_name' => Container::SPLIT_BUTTON,
             'sort_order' => 80,
@@ -123,6 +133,7 @@ class ViewOnStore extends Generic
                     'store_id' => $storeData['store_id'],
                     'label' => $storeData['store_name'],
                     'href' => $storeData['url'],
+                    'is_preview' => !empty($storeData['is_preview']),
                 ];
             },
             $storeUrls
@@ -138,5 +149,28 @@ class ViewOnStore extends Generic
     private function buildOnClick(string $url): string
     {
         return sprintf('window.open(%s, "_blank");', json_encode($url));
+    }
+
+    /**
+     * Determine if every store view link is a preview.
+     *
+     * @param array $storeUrls
+     * @return bool
+     */
+    private function isPreviewOnly(array $storeUrls): bool
+    {
+        if (!$storeUrls) {
+            return false;
+        }
+
+        foreach ($storeUrls as $storeData) {
+            if (!empty($storeData['is_preview'])) {
+                continue;
+            }
+
+            return false;
+        }
+
+        return true;
     }
 }

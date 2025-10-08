@@ -3,13 +3,14 @@
 namespace IdeallyStudio\MerchantToolkit\Ui\Component\Listing\Column;
 
 use IdeallyStudio\MerchantToolkit\Model\ProductViewUrlResolver;
+use Magento\Catalog\Model\Product\Visibility;
 use Magento\Framework\Escaper;
 use Magento\Framework\View\Element\UiComponent\ContextInterface;
 use Magento\Framework\View\Element\UiComponentFactory;
 use Magento\Ui\Component\Listing\Columns\Column;
 
 /**
- * Adds a "View" actions column to the product grid.
+ * Adds a "View/Preview" actions column to the product grid.
  */
 class ProductViewActions extends Column
 {
@@ -67,6 +68,11 @@ class ProductViewActions extends Column
                 continue;
             }
 
+            $visibility = isset($item['visibility']) ? (int)$item['visibility'] : null;
+            if ($visibility === Visibility::VISIBILITY_NOT_VISIBLE) {
+                continue;
+            }
+
             $storeUrls = $this->productViewUrlResolver->getStoreUrlsById($productId);
             if (!$storeUrls) {
                 continue;
@@ -97,13 +103,20 @@ class ProductViewActions extends Column
         $productName = isset($item['name']) ? $this->escaper->escapeHtml($item['name']) : '';
 
         foreach ($storeUrls as $position => $storeData) {
+            $isPreview = !empty($storeData['is_preview']);
             $actionKey = $isSingle && $position === 0
                 ? 'view'
                 : 'view_store_' . $storeData['store_id'];
 
-            $label = $isSingle
-                ? (string)__('View')
-                : (string)__('View (%1)', $storeData['store_name']);
+            if ($isSingle) {
+                $label = $isPreview
+                    ? (string)__('Preview on Store')
+                    : (string)__('View on Store');
+            } else {
+                $label = $isPreview
+                    ? (string)__('Preview on %1', $storeData['store_name'])
+                    : (string)__('View on %1', $storeData['store_name']);
+            }
 
             $actions[$actionKey] = [
                 'href' => $storeData['url'],
@@ -115,7 +128,9 @@ class ProductViewActions extends Column
             ];
 
             if ($productName !== '') {
-                $actions[$actionKey]['ariaLabel'] = (string)__('View %1', $productName);
+                $actions[$actionKey]['ariaLabel'] = $isPreview
+                    ? (string)__('Preview %1 on %2', $productName, $storeData['store_name'])
+                    : (string)__('View %1 on %2', $productName, $storeData['store_name']);
             }
         }
 

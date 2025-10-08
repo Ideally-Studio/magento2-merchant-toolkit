@@ -2,17 +2,21 @@
 
 namespace IdeallyStudio\MerchantToolkit\Model;
 
+use IdeallyStudio\MerchantToolkit\Model\ProductPreviewParameters;
+use IdeallyStudio\MerchantToolkit\Model\ProductPreviewTokenManager;
 use Magento\Catalog\Api\Data\ProductInterface;
+use Magento\Catalog\Model\Product\Attribute\Source\Status;
+use Magento\Catalog\Model\ResourceModel\Product as ProductResource;
 use Magento\CatalogUrlRewrite\Model\ProductUrlRewriteGenerator;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
+use Magento\Framework\UrlInterface;
 use Magento\Store\Api\Data\StoreInterface;
 use Magento\Store\Model\Store;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\UrlRewrite\Model\UrlFinderInterface;
 use Magento\UrlRewrite\Service\V1\Data\UrlRewrite;
-use Magento\Framework\UrlInterface;
 use const FILTER_VALIDATE_URL;
 
 /**
@@ -36,20 +40,36 @@ class ProductViewUrlResolver
     private $resourceConnection;
 
     /**
+     * @var ProductResource
+     */
+    private $productResource;
+
+    /**
+     * @var ProductPreviewTokenManager
+     */
+    private $previewTokenManager;
+
+    /**
      * ProductViewUrlResolver constructor.
      *
      * @param UrlFinderInterface $urlFinder
      * @param StoreManagerInterface $storeManager
      * @param ResourceConnection $resourceConnection
+     * @param ProductResource $productResource
+     * @param ProductPreviewTokenManager $previewTokenManager
      */
     public function __construct(
         UrlFinderInterface $urlFinder,
         StoreManagerInterface $storeManager,
-        ResourceConnection $resourceConnection
+        ResourceConnection $resourceConnection,
+        ProductResource $productResource,
+        ProductPreviewTokenManager $previewTokenManager
     ) {
         $this->urlFinder = $urlFinder;
         $this->storeManager = $storeManager;
         $this->resourceConnection = $resourceConnection;
+        $this->productResource = $productResource;
+        $this->previewTokenManager = $previewTokenManager;
     }
 
     /**
@@ -67,7 +87,11 @@ class ProductViewUrlResolver
 
         $storeIds = $this->extractStoreIds($product);
 
-        return $this->buildStoreUrls($productId, $storeIds);
+        return $this->buildStoreUrls(
+            $productId,
+            $storeIds,
+            $this->resolveProductStatuses($productId, $storeIds)
+        );
     }
 
     /**
@@ -84,7 +108,11 @@ class ProductViewUrlResolver
 
         $storeIds = $this->fetchStoreIds($productId);
 
-        return $this->buildStoreUrls($productId, $storeIds);
+        return $this->buildStoreUrls(
+            $productId,
+            $storeIds,
+            $this->resolveProductStatuses($productId, $storeIds)
+        );
     }
 
     /**
@@ -146,11 +174,13 @@ class ProductViewUrlResolver
     /**
      * Build the response structure containing store-specific URLs.
      *
-     * @param int $productId
-     * @param int[] $storeIds
+     * @param int   $productId     Product identifier
+     * @param int[] $storeIds      Store identifiers
+     * @param array $storeStatuses Store statuses indexed by store ID
+     *
      * @return array<int, array<string, mixed>>
      */
-    private function buildStoreUrls(int $productId, array $storeIds): array
+    private function buildStoreUrls(int $productId, array $storeIds, array $storeStatuses): array
     {
         $result = [];
 
@@ -165,7 +195,7 @@ class ProductViewUrlResolver
                 continue;
             }
 
-            if (!$store->isActive() || $store->isAdmin()) {
+            if (!$store->isActive()) {
                 continue;
             }
 
@@ -175,12 +205,19 @@ class ProductViewUrlResolver
                 continue;
             }
 
+            $isPreview = ((int)($storeStatuses[$storeId] ?? Status::STATUS_ENABLED)) === Status::STATUS_DISABLED;
+
+            if ($isPreview) {
+                $url = $this->appendPreviewParameters($url, $productId, (int)$store->getId());
+            }
+
             $result[] = [
                 'store_id' => (int)$store->getId(),
                 'store_code' => $store->getCode(),
                 'store_name' => $store->getName(),
                 'url' => $url,
                 'sort_order' => (int)$store->getSortOrder(),
+                'is_preview' => $isPreview,
             ];
         }
 
@@ -193,6 +230,29 @@ class ProductViewUrlResolver
         );
 
         return $result;
+    }
+
+    /**
+     * Resolve product status per store view.
+     *
+     * @param int $productId
+     * @param int[] $storeIds
+     * @return array<int, int>
+     */
+    private function resolveProductStatuses(int $productId, array $storeIds): array
+    {
+        $statuses = [];
+
+        foreach ($storeIds as $storeId) {
+            $status = $this->productResource->getAttributeRawValue($productId, 'status', $storeId);
+            if ($status === false || $status === null) {
+                continue;
+            }
+
+            $statuses[(int)$storeId] = (int)$status;
+        }
+
+        return $statuses;
     }
 
     /**
@@ -275,5 +335,31 @@ class ProductViewUrlResolver
         $baseUrl = rtrim($store->getBaseUrl(UrlInterface::URL_TYPE_LINK), '/');
 
         return $baseUrl . '/' . ltrim($path, '/');
+    }
+
+    /**
+     * Append preview parameters to the resolved storefront URL.
+     *
+     * @param string $url
+     * @param int $productId
+     * @param int $storeId
+     * @return string
+     */
+    private function appendPreviewParameters(string $url, int $productId, int $storeId): string
+    {
+        $token = $this->previewTokenManager->generate($productId, $storeId);
+        $query = http_build_query(
+            [
+                ProductPreviewParameters::FLAG => 1,
+                ProductPreviewParameters::TOKEN => $token,
+            ],
+            '',
+            '&',
+            PHP_QUERY_RFC3986
+        );
+
+        $separator = strpos($url, '?') === false ? '?' : '&';
+
+        return $url . $separator . $query;
     }
 }

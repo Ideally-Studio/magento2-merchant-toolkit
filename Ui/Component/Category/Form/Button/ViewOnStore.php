@@ -137,7 +137,7 @@ class ViewOnStore extends AbstractCategory implements ButtonProviderInterface
             } catch (NoSuchEntityException $e) {
                 throw new LocalizedException(__(sprintf('Store with ID %s doesn\'t exists', $storeParam)));
             }
-            if ($store->isActive() && !$store->isAdmin()) {
+            if ($store->isActive()) {
                 return $store;
             }
         }
@@ -146,7 +146,7 @@ class ViewOnStore extends AbstractCategory implements ButtonProviderInterface
         if ($rootCategoryId) {
             $candidate = null;
             foreach ($this->_storeManager->getStores(false) as $storeView) {
-                if ($storeView->isAdmin() || !$storeView->isActive()) {
+                if (!$storeView->isActive()) {
                     continue;
                 }
 

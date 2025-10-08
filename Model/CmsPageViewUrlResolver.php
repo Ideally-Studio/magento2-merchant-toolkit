@@ -75,7 +75,7 @@ class CmsPageViewUrlResolver
                 continue;
             }
 
-            if (!$store->isActive() || $store->isAdmin()) {
+            if (!$store->isActive()) {
                 continue;
             }
 
@@ -120,7 +120,7 @@ class CmsPageViewUrlResolver
         $storeIds = $connection->fetchCol(
             $connection->select()
                 ->from($table, 'store_id')
-                ->where('row_id = ?', $page->getRowId())
+                ->where('page_id = ?', $page->getId())
         );
 
         $storeIds = array_values(array_unique(array_map('intval', $storeIds)));
@@ -128,9 +128,6 @@ class CmsPageViewUrlResolver
         if (!$storeIds || in_array(Store::DEFAULT_STORE_ID, $storeIds, true)) {
             $storeIds = [];
             foreach ($this->storeManager->getStores(false) as $store) {
-                if ($store->isAdmin()) {
-                    continue;
-                }
                 $storeIds[] = (int)$store->getId();
             }
         }
